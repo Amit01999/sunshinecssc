@@ -148,8 +148,16 @@ const Footer = () => (
         <p className="text-white/30 text-xs">
           © {new Date().getFullYear()} Chittagong Sunshine School &amp; College. All rights reserved.
         </p>
-        <p className="text-white/20 text-xs">
-          Designed with care for education
+        <p className="text-white/30 text-xs">
+          Developed by{" "}
+          <a
+            href="https://bepro.it.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[hsl(208,89%,55%)] hover:text-white transition-colors duration-200"
+          >
+            BePro IT
+          </a>
         </p>
       </div>
     </div>
