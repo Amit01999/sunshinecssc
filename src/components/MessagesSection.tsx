@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import saifa from '@/assets/safia ghazi rahman.jpg';
+import sameer from '@/assets/samir rahaman.jpg';
 
 interface MessageCardProps {
   title: string;
@@ -10,6 +14,21 @@ interface MessageCardProps {
   text: string;
   link: string;
   color: string; // one of the brand palette colours
+}
+
+interface CmsMessageCard {
+  title: string;
+  name: string;
+  role: string;
+  text: string;
+  link: string;
+  color: string;
+  imageUrl?: string;
+}
+
+interface CmsMessagesSection {
+  sectionTitle: string;
+  cards: CmsMessageCard[];
 }
 
 /** Converts a hex colour to rgba with the given opacity */
@@ -141,10 +160,12 @@ const MessageCard = ({
   </motion.div>
 );
 
-const messages: MessageCardProps[] = [
+const DEFAULT_SECTION_TITLE = 'Messages from Our Leadership';
+
+const fallbackMessages: MessageCardProps[] = [
   {
     title: "Founder & Chairman's Message",
-    image: 'http://sunshinecssc.com/wp-content/uploads/2019/03/Madam-pic.jpg',
+    image: saifa,
     name: 'Safia Ghazi Rahman',
     role: 'Founder & Principal, Sunshine Education',
     text: 'We welcome you to the Sunshine World. We are extremely happy to have your child with us in our Sunshine Family.\n\nThe objective of Chittagong Sunshine School and College, is to provide a stimulating and challenging learning environment that enables students to develop the capacity of learning and operating the skills required to excel in this highly competitive and rapidly changing world. Sunshiners shall be very good human beings and pride of Bangladesh at all times Inshallah.',
@@ -153,8 +174,7 @@ const messages: MessageCardProps[] = [
   },
   {
     title: "Director's Message",
-    image:
-      'http://sunshinecssc.com/wp-content/uploads/2019/03/PassportPicture.jpg',
+    image: sameer,
     name: 'Sameer Ghazi Rahman',
     role: 'Director of Academics, Sunshine Education',
     text: 'As the Director of Academics of Sunshine Education for the past seven years, I have seen excellent performances from the students of Chittagong Sunshine School & College (CSSC).\n\nEstablished in 2005, Chittagong Sunshine School was created to meet the growing demand of National Curriculum in English Version (SSC) in Chattogram.',
@@ -172,36 +192,63 @@ const messages: MessageCardProps[] = [
   },
 ];
 
-const MessagesSection = () => (
-  <section id="message" className="py-10 px-4 sm:px-6 lg:px-8">
-    <div className="container mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-16">
-        {messages.map(m => (
-          <MessageCard key={m.title} {...m} />
-        ))}
-      </div>
-    </div>
+const MessagesSection = () => {
+  const { data } = useQuery({
+    queryKey: ['public-homepage-hero'],
+    queryFn: async () => (await api.get('/cms/homepage/public')).data.data as { messagesSection?: CmsMessagesSection },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 
-    {/* Divi-style chevron divider */}
-    <div className="relative mt-20 overflow-hidden">
-      <svg
-        viewBox="0 0 1440 90"
-        preserveAspectRatio="none"
-        className="w-full h-[65px] md:h-[90px] block"
-      >
-        {/* Back layer — lighter blue */}
-        <path
-          d="M0,90 L720,0 L1440,90 L1440,90 L0,90 Z"
-          fill="hsl(208 60% 60% / 0.45)"
-        />
-        {/* Front layer — primary blue */}
-        <path
-          d="M0,90 L720,15 L1440,90 L1440,90 L0,90 Z"
-          fill="hsl(208,89%,40%)"
-        />
-      </svg>
-    </div>
-  </section>
-);
+  const cms = data?.messagesSection;
+  const sectionTitle = cms?.sectionTitle || DEFAULT_SECTION_TITLE;
+  const messages: MessageCardProps[] =
+    cms?.cards?.length
+      ? cms.cards.map((c) => ({
+          title: c.title,
+          image: c.imageUrl ?? '',
+          name: c.name,
+          role: c.role,
+          text: c.text,
+          link: c.link,
+          color: c.color,
+        }))
+      : fallbackMessages;
+
+  return (
+    <section id="message" className="py-10 px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto">
+        <h2 className="text-3xl md:text-4xl font-bold text-center font-display text-foreground">
+          {sectionTitle}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+          {messages.map((m, i) => (
+            <MessageCard key={m.link || i} {...m} />
+          ))}
+        </div>
+      </div>
+
+      {/* Divi-style chevron divider */}
+      <div className="relative mt-20 overflow-hidden">
+        <svg
+          viewBox="0 0 1440 90"
+          preserveAspectRatio="none"
+          className="w-full h-[65px] md:h-[90px] block"
+        >
+          {/* Back layer — lighter blue */}
+          <path
+            d="M0,90 L720,0 L1440,90 L1440,90 L0,90 Z"
+            fill="hsl(208 60% 60% / 0.45)"
+          />
+          {/* Front layer — primary blue */}
+          <path
+            d="M0,90 L720,15 L1440,90 L1440,90 L0,90 Z"
+            fill="hsl(208,89%,40%)"
+          />
+        </svg>
+      </div>
+    </section>
+  );
+};
 
 export default MessagesSection;

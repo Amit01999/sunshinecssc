@@ -1,36 +1,71 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import hero1 from '@/assets/images/hero1.png';
 import hero2 from '@/assets/images/hero2.png';
 import hero3 from '@/assets/images/hero3.png';
 
-const slides = [
-  {
-    src: hero1,
-    alt: 'Chittagong Sunshine School & College campus',
-  },
-  {
-    src: hero2,
-    alt: 'Students at Chittagong Sunshine School',
-  },
-  {
-    src: hero3,
-    alt: 'School event at Chittagong Sunshine School & College',
-  },
+interface Slide {
+  src: string;
+  alt: string;
+  heading?: string;
+  subheading?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  focalPosition?: string;
+}
+
+const fallbackSlides: Slide[] = [
+  { src: hero1, alt: 'Chittagong Sunshine School & College campus' },
+  { src: hero2, alt: 'Students at Chittagong Sunshine School' },
+  { src: hero3, alt: 'School event at Chittagong Sunshine School & College' },
 ];
+
+interface CmsHeroSlide {
+  imageUrl: string;
+  heading?: string;
+  subheading?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  focalPosition?: string;
+}
 
 const AUTOPLAY_DELAY = 5000;
 
 const HeroSlider = () => {
   const [current, setCurrent] = useState(0);
 
-  const goTo = useCallback((index: number) => {
-    setCurrent(index);
-  }, []);
+  const { data } = useQuery({
+    queryKey: ['public-homepage-hero'],
+    queryFn: async () => (await api.get('/cms/homepage/public')).data.data as { heroSlides: CmsHeroSlide[] },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 
-  const next = useCallback(() => {
-    setCurrent(prev => (prev + 1) % slides.length);
-  }, []);
+  // The CMS is the source of truth once it has at least one published slide; until then,
+  // or if it's unreachable, the site keeps shipping with its original built-in hero images.
+  const slides = useMemo<Slide[]>(() => {
+    if (data?.heroSlides?.length) {
+      return data.heroSlides.map((s) => ({
+        src: s.imageUrl,
+        alt: s.heading ?? 'Chittagong Sunshine School & College',
+        heading: s.heading,
+        subheading: s.subheading,
+        ctaLabel: s.ctaLabel,
+        ctaHref: s.ctaHref,
+        focalPosition: s.focalPosition,
+      }));
+    }
+    return fallbackSlides;
+  }, [data]);
+
+  const goTo = useCallback((index: number) => setCurrent(index), []);
+  const next = useCallback(() => setCurrent((prev) => (prev + 1) % slides.length), [slides.length]);
+
+  useEffect(() => {
+    if (current >= slides.length) setCurrent(0);
+  }, [slides.length, current]);
 
   useEffect(() => {
     const timer = setInterval(next, AUTOPLAY_DELAY);
@@ -53,7 +88,7 @@ const HeroSlider = () => {
         */}
         {slides.map((slide, i) => (
           <motion.div
-            key={i}
+            key={slide.src + i}
             animate={{ opacity: i === current ? 1 : 0 }}
             transition={{ duration: 0.9, ease: 'easeInOut' }}
             className="absolute inset-0"
@@ -66,9 +101,29 @@ const HeroSlider = () => {
               src={slide.src}
               alt={slide.alt}
               className="w-full h-full object-cover"
+              style={{ objectPosition: slide.focalPosition ?? 'center' }}
               loading="eager"
               decoding="async"
             />
+            {(slide.heading || slide.subheading) && (
+              <div className="absolute inset-0 flex items-center">
+                <div className="max-w-[1400px] mx-auto px-6 w-full">
+                  <div className="max-w-xl text-white drop-shadow-md">
+                    {slide.heading && <h1 className="text-3xl md:text-5xl font-bold font-display mb-3">{slide.heading}</h1>}
+                    {slide.subheading && <p className="text-base md:text-lg text-white/90 mb-5">{slide.subheading}</p>}
+                    {slide.ctaLabel && slide.ctaHref && (
+                      <a
+                        href={slide.ctaHref}
+                        className="inline-block px-6 py-3 rounded-xl text-sm font-semibold shadow-lg"
+                        style={{ backgroundColor: 'hsl(208,89%,40%)' }}
+                      >
+                        {slide.ctaLabel}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         ))}
 

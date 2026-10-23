@@ -1,8 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { api } from '@/lib/api';
 
 // Import all local gallery images via Vite glob
 const imageModules = import.meta.glob('../assets/images/*.{jpg,jpeg,png,webp}', {
@@ -33,7 +35,7 @@ const wpImages = [
   'https://sunshinecssc.com/wp-content/uploads/2019/02/20170817_103108-400x284.jpg',
 ];
 
-const images = allImages.length > 0 ? allImages : wpImages;
+const fallbackImages = allImages.length > 0 ? allImages : wpImages;
 
 const TABS = ['All', 'Events', 'Campus', 'Activities'];
 
@@ -41,8 +43,16 @@ const GalleryPage = () => {
   const [activeTab, setActiveTab] = useState('All');
   const [lightbox, setLightbox] = useState<number | null>(null);
 
-  // Simple partition: just show all images for every tab (real data doesn't have categories)
-  const displayed = images;
+  const { data } = useQuery({
+    queryKey: ['public-gallery-full'],
+    queryFn: async () => (await api.get('/gallery/images/public')).data.data as { url: string; altText?: string }[],
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  // The admin-managed gallery takes over once it has any published images; until then,
+  // or if the API is unreachable, the page keeps showing its original built-in photos.
+  const displayed = useMemo(() => (data?.length ? data.map((img) => img.url) : fallbackImages), [data]);
 
   const openLightbox = (i: number) => setLightbox(i);
   const closeLightbox = () => setLightbox(null);

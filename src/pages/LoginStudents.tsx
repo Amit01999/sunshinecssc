@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, GraduationCap } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import logo from '@/assets/images/logo.png';
+import { useAuth, getErrorMessage } from '@/context/AuthContext';
 
 const PRIMARY = 'hsl(208,89%,40%)';
 
@@ -12,25 +13,51 @@ const LoginStudents = () => {
   const [form, setForm] = useState({ studentId: '', password: '' });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
+    try {
+      await login(form.studentId, form.password);
+      navigate('/portal');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Invalid email or password'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
       <Navbar />
       <main
-        className="pt-[97px] min-h-screen flex flex-col"
-        style={{ background: 'linear-gradient(135deg, hsl(208,89%,97%) 0%, hsl(208,89%,92%) 100%)' }}
+        className="pt-[97px] min-h-screen flex flex-col relative overflow-hidden"
+        style={{
+          background:
+            'linear-gradient(135deg, hsl(208,89%,97%) 0%, hsl(208,89%,92%) 100%)',
+        }}
       >
         {/* Decorative circles */}
-        <div className="absolute top-[97px] left-0 w-72 h-72 rounded-full opacity-20 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, hsl(208,89%,60%), transparent)', transform: 'translate(-40%, -20%)' }} />
-        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, hsl(208,89%,40%), transparent)', transform: 'translate(30%, 30%)' }} />
+        <div
+          className="absolute top-[97px] left-0 w-72 h-72 rounded-full opacity-20 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle, hsl(208,89%,60%), transparent)',
+            transform: 'translate(-40%, -20%)',
+          }}
+        />
+        <div
+          className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle, hsl(208,89%,40%), transparent)',
+            transform: 'translate(30%, 30%)',
+          }}
+        />
 
         <div className="flex-1 flex items-center justify-center px-4 py-14 relative">
           <motion.div
@@ -40,7 +67,10 @@ const LoginStudents = () => {
             className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden"
           >
             {/* Top accent bar */}
-            <div className="h-1.5 w-full" style={{ backgroundColor: PRIMARY }} />
+            <div
+              className="h-1.5 w-full"
+              style={{ backgroundColor: PRIMARY }}
+            />
 
             <div className="px-8 py-8">
               {/* Logo + heading */}
@@ -48,8 +78,12 @@ const LoginStudents = () => {
                 <div className="flex items-center gap-3 mb-5">
                   <img src={logo} alt="Sunshine logo" className="h-10 w-auto" />
                   <div className="text-left">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest">Chittagong</p>
-                    <p className="text-sm font-bold text-gray-800 leading-tight">Sunshine School &amp; College</p>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest">
+                      Chittagong
+                    </p>
+                    <p className="text-sm font-bold text-gray-800 leading-tight">
+                      Sunshine School &amp; College
+                    </p>
                   </div>
                 </div>
 
@@ -71,30 +105,36 @@ const LoginStudents = () => {
               </div>
 
               {/* Icon */}
-              <div className="flex justify-center mb-6">
+              {/* <div className="flex justify-center mb-6">
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md"
                   style={{ backgroundColor: 'hsl(208,89%,95%)' }}
                 >
                   <GraduationCap className="w-8 h-8" style={{ color: PRIMARY }} />
                 </div>
-              </div>
+              </div> */}
 
-              <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">Welcome Back</h2>
-              <p className="text-sm text-gray-400 text-center mb-7">Sign in to your student / parent portal</p>
+              <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">
+                Welcome Back
+              </h2>
+              <p className="text-sm text-gray-400 text-center mb-7">
+                Sign in to your student / parent portal
+              </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Student ID */}
+                {/* Email */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Student ID / Roll Number
+                    Email Address
                   </label>
                   <input
-                    type="text"
-                    placeholder="e.g. SS-2024-001"
+                    type="email"
+                    placeholder="you@example.com"
                     required
                     value={form.studentId}
-                    onChange={e => setForm({ ...form, studentId: e.target.value })}
+                    onChange={e =>
+                      setForm({ ...form, studentId: e.target.value })
+                    }
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-all"
                     onFocus={e => (e.target.style.borderColor = PRIMARY)}
                     onBlur={e => (e.target.style.borderColor = '')}
@@ -112,7 +152,9 @@ const LoginStudents = () => {
                       placeholder="Enter your password"
                       required
                       value={form.password}
-                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      onChange={e =>
+                        setForm({ ...form, password: e.target.value })
+                      }
                       className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none transition-all"
                       onFocus={e => (e.target.style.borderColor = PRIMARY)}
                       onBlur={e => (e.target.style.borderColor = '')}
@@ -122,17 +164,29 @@ const LoginStudents = () => {
                       onClick={() => setShowPw(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPw ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 {/* Forgot */}
                 <div className="flex justify-end">
-                  <a href="#" className="text-xs font-medium" style={{ color: PRIMARY }}>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-medium"
+                    style={{ color: PRIMARY }}
+                  >
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
+
+                {error && (
+                  <p className="text-xs text-red-600 text-center">{error}</p>
+                )}
 
                 {/* Submit */}
                 <motion.button
@@ -156,7 +210,11 @@ const LoginStudents = () => {
 
               <p className="text-center text-xs text-gray-400 mt-6">
                 Having trouble?{' '}
-                <Link to="/contact-us" className="font-medium" style={{ color: PRIMARY }}>
+                <Link
+                  to="/contact-us"
+                  className="font-medium"
+                  style={{ color: PRIMARY }}
+                >
                   Contact the school office
                 </Link>
               </p>

@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ZoomIn } from 'lucide-react';
+import { api } from '@/lib/api';
 import claude from '@/assets/clude.png';
 
 const imageModules = import.meta.glob('../assets/images/*.{jpg,jpeg,png,webp}', {
@@ -11,12 +13,22 @@ const imageModules = import.meta.glob('../assets/images/*.{jpg,jpeg,png,webp}', 
 
 const EXCLUDE = ['hero1.png', 'hero2.png', 'hero3.png', 'logo.png', 'unnamed.webp', 'clude.png'];
 
-const previewImages: string[] = Object.entries(imageModules)
+const fallbackImages: string[] = Object.entries(imageModules)
   .filter(([path]) => !EXCLUDE.some(ex => path.endsWith(ex)))
   .map(([, url]) => url)
   .slice(0, 8);
 
-const Gallery = () => (
+const Gallery = () => {
+  const { data } = useQuery({
+    queryKey: ['public-gallery-preview'],
+    queryFn: async () => (await api.get('/gallery/images/public', { params: { featured: true } })).data.data as { url: string; altText?: string }[],
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const previewImages = data?.length ? data.map((img) => img.url) : fallbackImages;
+
+  return (
   <section id="gallery" className="pb-8 px-4 sm:px-6 lg:px-12">
     <div className="container mx-auto max-w-7xl">
 
@@ -72,6 +84,7 @@ const Gallery = () => (
       />
     </div>
   </section>
-);
+  );
+};
 
 export default Gallery;

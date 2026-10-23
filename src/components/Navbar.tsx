@@ -36,6 +36,7 @@ const navItems = [
       { label: 'Our Teachers', href: '/academics/teachers', isRoute: true },
     ],
   },
+  { label: 'Admissions', href: '/admissions', isRoute: true },
   { label: 'Notice and Events', href: '/notice-and-events', isRoute: true },
   { label: 'News and Media', href: '/news-and-media', isRoute: true },
   { label: 'Contact Us', href: '/contact-us', isRoute: true },

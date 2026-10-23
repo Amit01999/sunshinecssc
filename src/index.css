@@ -107,3 +107,12 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Keeps an element scrollable while hiding the visible scrollbar track/thumb across browsers. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, newer Edge */
+}
+

@@ -1,22 +1,48 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { Phone, MapPin, Mail, Send } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { api, getErrorMessage } from '@/lib/api';
 
 const PRIMARY = 'hsl(208,89%,40%)';
+
+interface SiteSettings {
+  address?: string;
+  phones?: string[];
+  emails?: string[];
+}
 
 const ContactUs = () => {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { data: settings } = useQuery({
+    queryKey: ['public-site-settings'],
+    queryFn: async () => (await api.get('/site-settings/public')).data.data as SiteSettings,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setForm({ name: '', email: '', message: '' });
-    }, 3000);
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.post('/contact-messages', form);
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setForm({ name: '', email: '', message: '' });
+      }, 3000);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -83,9 +109,11 @@ const ContactUs = () => {
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Phone</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  01713102143<br />
-                  01717149453<br />
-                  031655319
+                  {settings?.phones?.length ? (
+                    settings.phones.map((p, i) => <span key={i}>{p}<br /></span>)
+                  ) : (
+                    <>01713102143<br />01717149453<br />031655319</>
+                  )}
                 </p>
               </div>
             </motion.div>
@@ -106,10 +134,9 @@ const ContactUs = () => {
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Address</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  House 11, Road 1,<br />
-                  Nasirabad H/S,<br />
-                  Chittagong – 4000,<br />
-                  Bangladesh
+                  {settings?.address?.trim() || (
+                    <>House 11, Road 1,<br />Nasirabad H/S,<br />Chittagong – 4000,<br />Bangladesh</>
+                  )}
                 </p>
               </div>
             </motion.div>
@@ -130,8 +157,11 @@ const ContactUs = () => {
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Email</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  info@sunshinecssc.com<br />
-                  admin@sunshinecssc.com
+                  {settings?.emails?.length ? (
+                    settings.emails.map((e, i) => <span key={i}>{e}<br /></span>)
+                  ) : (
+                    <>info@sunshinecssc.com<br />admin@sunshinecssc.com</>
+                  )}
                 </p>
               </div>
             </motion.div>
@@ -233,15 +263,17 @@ const ContactUs = () => {
                       onBlur={e => (e.target.style.borderColor = '')}
                     />
                   </div>
+                  {error && <p className="text-xs text-red-600 text-center">{error}</p>}
                   <motion.button
                     type="submit"
+                    disabled={submitting}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-shadow"
+                    className="w-full py-3 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-shadow disabled:opacity-70"
                     style={{ backgroundColor: PRIMARY }}
                   >
                     <Send className="w-4 h-4" />
-                    Send Message
+                    {submitting ? 'Sending…' : 'Send Message'}
                   </motion.button>
                 </form>
               )}

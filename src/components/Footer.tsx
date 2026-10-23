@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { FaFacebookF, FaInstagram, FaPhone, FaMapMarkerAlt } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
+import { api } from "@/lib/api";
 
 const quickLinks = [
   { label: "About Us",   href: "#about"      },
@@ -10,7 +12,26 @@ const quickLinks = [
   { label: "Contact",    href: "#contact"    },
 ];
 
-const Footer = () => (
+interface SiteSettings {
+  address?: string;
+  phones?: string[];
+  emails?: string[];
+  socialLinks?: { facebook?: string; instagram?: string; twitter?: string };
+}
+
+const Footer = () => {
+  const { data: settings } = useQuery({
+    queryKey: ["public-site-settings"],
+    queryFn: async () => (await api.get("/site-settings/public")).data.data as SiteSettings,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const address = settings?.address?.trim();
+  const phones = settings?.phones?.filter(Boolean);
+  const social = settings?.socialLinks;
+
+  return (
   <footer
     className="relative overflow-hidden"
     style={{
@@ -100,15 +121,20 @@ const Footer = () => (
             <div className="flex items-start gap-3">
               <FaMapMarkerAlt className="mt-0.5 flex-shrink-0 text-xs" style={{ color: "hsl(208,89%,50%)" }} />
               <p className="text-white/55 text-xs leading-relaxed">
-                House 11, Road 1, Nasirabad H/S,<br />
-                Chittagong – 4000, Bangladesh
+                {address ? (
+                  address
+                ) : (
+                  <>
+                    House 11, Road 1, Nasirabad H/S,<br />
+                    Chittagong – 4000, Bangladesh
+                  </>
+                )}
               </p>
             </div>
             <div className="flex items-start gap-3">
               <FaPhone className="mt-0.5 flex-shrink-0 text-xs" style={{ color: "hsl(208,89%,50%)" }} />
               <p className="text-white/55 text-xs leading-relaxed">
-                01713102143 · 01717149453<br />
-                031655319
+                {phones?.length ? phones.join(" · ") : <>01713102143 · 01717149453<br />031655319</>}
               </p>
             </div>
           </div>
@@ -116,13 +142,15 @@ const Footer = () => (
           {/* Social icons */}
           <div className="flex gap-2.5 mt-6">
             {[
-              { Icon: FaFacebookF, label: "Facebook" },
-              { Icon: FaInstagram, label: "Instagram" },
-              { Icon: FaXTwitter,  label: "X"         },
-            ].map(({ Icon, label }) => (
+              { Icon: FaFacebookF, label: "Facebook", href: social?.facebook },
+              { Icon: FaInstagram, label: "Instagram", href: social?.instagram },
+              { Icon: FaXTwitter,  label: "X", href: social?.twitter },
+            ].map(({ Icon, label, href }) => (
               <a
                 key={label}
-                href="#"
+                href={href || "#"}
+                target={href ? "_blank" : undefined}
+                rel={href ? "noopener noreferrer" : undefined}
                 aria-label={label}
                 className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5"
                 style={{
@@ -162,6 +190,7 @@ const Footer = () => (
       </div>
     </div>
   </footer>
-);
+  );
+};
 
 export default Footer;
