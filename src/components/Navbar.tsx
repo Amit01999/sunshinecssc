@@ -3,11 +3,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HiMenuAlt3, HiX } from 'react-icons/hi';
 import { FaFacebookF } from 'react-icons/fa';
 import { FaXTwitter } from 'react-icons/fa6';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, LayoutDashboard } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import logo from '@/assets/images/logo.png';
+import { useAuth } from '@/context/AuthContext';
+import { dashboardBaseForRole } from '@/components/dashboard/portalBase';
 
-const navItems = [
+type NavEntry = {
+  label: string;
+  href: string;
+  isRoute?: boolean;
+  icon?: typeof LayoutDashboard;
+  dropdown?: { label: string; href: string; isRoute?: boolean }[];
+};
+
+const LOGIN_NAV_ITEM: NavEntry = {
+  label: 'Login',
+  href: '#',
+  dropdown: [
+    { label: 'Students & Parents', href: '/login/students', isRoute: true },
+    { label: 'Teachers & Staffs', href: '/login/teachers', isRoute: true },
+  ],
+};
+
+const baseNavItems: NavEntry[] = [
   { label: 'Home', href: '/', isRoute: true },
   {
     label: 'Message',
@@ -40,20 +59,12 @@ const navItems = [
   { label: 'Notice and Events', href: '/notice-and-events', isRoute: true },
   { label: 'News and Media', href: '/news-and-media', isRoute: true },
   { label: 'Contact Us', href: '/contact-us', isRoute: true },
-  {
-    label: 'Login',
-    href: '#',
-    dropdown: [
-      { label: 'Students & Parents', href: '/login/students', isRoute: true },
-      { label: 'Teachers & Staffs', href: '/login/teachers', isRoute: true },
-    ],
-  },
 ];
 
 const PRIMARY = 'hsl(208,89%,40%)';
 
 /** Returns true if this nav item (or any of its children) matches the current path */
-function useIsActive(item: (typeof navItems)[0]) {
+function useIsActive(item: NavEntry) {
   const { pathname } = useLocation();
   if (item.dropdown) {
     return item.dropdown.some(
@@ -130,7 +141,7 @@ const DropdownMenu = ({
   );
 };
 
-const NavItem = ({ item }: { item: (typeof navItems)[0] }) => {
+const NavItem = ({ item }: { item: NavEntry }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLLIElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,6 +175,7 @@ const NavItem = ({ item }: { item: (typeof navItems)[0] }) => {
     >
       {item.isRoute ? (
         <Link to={item.href} className={linkCls}>
+          {item.icon && <item.icon className="w-3.5 h-3.5" />}
           {item.label}
         </Link>
       ) : (
@@ -200,6 +212,16 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const { pathname } = useLocation();
+  const { user, isLoading } = useAuth();
+
+  // While the session is still being restored (e.g. a hard refresh on this page), fall back to
+  // the normal "Login" entry rather than asserting the user is logged out - it flips to the
+  // dashboard shortcut as soon as restoration resolves, same as it would on first page load.
+  const authNavItem: NavEntry =
+    user && !isLoading
+      ? { label: 'Dashboard', href: dashboardBaseForRole(user.role), isRoute: true, icon: LayoutDashboard }
+      : LOGIN_NAV_ITEM;
+  const navItems: NavEntry[] = [...baseNavItems, authNavItem];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -213,7 +235,7 @@ const Navbar = () => {
     setMobileExpanded(null);
   }, [pathname]);
 
-  const isMobileItemActive = (item: (typeof navItems)[0]) => {
+  const isMobileItemActive = (item: NavEntry) => {
     if (item.dropdown) {
       return item.dropdown.some(
         child =>
@@ -343,12 +365,13 @@ const Navbar = () => {
                         <Link
                           to={item.href}
                           onClick={() => setMobileOpen(false)}
-                          className={`w-full flex items-center justify-between px-6 py-3.5 text-sm transition-colors border-l-[3px] ${
+                          className={`w-full flex items-center gap-2 px-6 py-3.5 text-sm transition-colors border-l-[3px] ${
                             active
                               ? 'font-semibold border-l-[hsl(208,89%,40%)] text-[hsl(208,89%,40%)] bg-blue-50/50'
                               : 'font-medium border-l-transparent text-gray-700 hover:text-[hsl(208,89%,40%)] hover:bg-gray-50'
                           }`}
                         >
+                          {item.icon && <item.icon className="w-4 h-4" />}
                           {item.label}
                         </Link>
                       ) : (

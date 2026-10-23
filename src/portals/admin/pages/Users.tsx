@@ -28,6 +28,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const ROLES = ["student", "parent", "teacher", "staff", "admin", "academic_admin"];
+// Academic Admin currently has identical permissions to Admin, so creating one here would just
+// be a confusing duplicate - hidden from account creation until it's a real, distinct role.
+// Existing academic_admin accounts and the role filter above are untouched.
+const CREATABLE_ROLES = ROLES.filter((r) => r !== "academic_admin");
 
 function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
   const { toast } = useToast();
@@ -125,7 +129,7 @@ function CreateUserDialog({ onCreated }: { onCreated: () => void }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
+                  {CREATABLE_ROLES.map((r) => (
                     <SelectItem key={r} value={r} className="capitalize">
                       {r.replace("_", " ")}
                     </SelectItem>

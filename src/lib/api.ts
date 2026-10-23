@@ -17,6 +17,20 @@ export function getAccessToken() {
   return accessToken;
 }
 
+// AuthContext owns `user`, this module owns `accessToken` - they're deliberately separate
+// (avoids a circular import), but that means a background refresh failure here wouldn't
+// otherwise be reflected in `user`, leaving the UI looking logged in while every request
+// silently 401s. AuthContext subscribes to this to resync itself when a refresh is genuinely
+// rejected by the server (not just a dropped connection) - never for a transient network error.
+type AuthFailureListener = () => void;
+let authFailureListeners: AuthFailureListener[] = [];
+export function onAuthFailure(listener: AuthFailureListener) {
+  authFailureListeners.push(listener);
+  return () => {
+    authFailureListeners = authFailureListeners.filter((l) => l !== listener);
+  };
+}
+
 api.interceptors.request.use((config) => {
   // "/public" endpoints (notices, events, etc.) must render identically for every visitor.
   // Without this, a still-logged-in admin browsing the public marketing site gets a different,
@@ -33,7 +47,10 @@ type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
 let refreshPromise: Promise<string | null> | null = null;
 
-async function refreshAccessToken(): Promise<string | null> {
+// Exported only so tests can drive this directly (e.g. firing several "concurrent" calls and
+// asserting exactly one network request happened) - every real caller still goes through the
+// response interceptor below.
+export async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = axios
       .post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
@@ -42,8 +59,15 @@ async function refreshAccessToken(): Promise<string | null> {
         setAccessToken(token);
         return token;
       })
-      .catch(() => {
+      .catch((err) => {
         setAccessToken(null);
+        // A real response (e.g. 401 "session no longer valid") means the server genuinely
+        // rejected the refresh - sync the rest of the app to logged-out. No response at all
+        // (offline, timeout, a slow cold start) is a transport failure, not a verdict on the
+        // session, so it's left alone: this one request fails, but nothing forces a logout.
+        if (axios.isAxiosError(err) && err.response) {
+          authFailureListeners.forEach((l) => l());
+        }
         return null;
       })
       .finally(() => {

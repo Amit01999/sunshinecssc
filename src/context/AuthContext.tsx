@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, setAccessToken, getErrorMessage } from "@/lib/api";
+import { api, setAccessToken, onAuthFailure, getErrorMessage } from "@/lib/api";
+
+function isTransportError(err: unknown): boolean {
+  // No response at all (offline, timeout, DNS, a slow cold start) - not the server telling us
+  // the session is invalid, so it must never be treated the same as a real rejection.
+  return axios.isAxiosError(err) && !err.response;
+}
 
 export type Role = "super_admin" | "admin" | "academic_admin" | "teacher" | "staff" | "student" | "parent";
 
@@ -42,19 +49,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    (async () => {
+    // One bounded retry, only for a genuine transport failure - a dropped connection or a slow
+    // cold start must not cost someone their session the way an actually-expired/revoked refresh
+    // token should. Any real rejection from the server (401, etc.) fails immediately, no retry.
+    async function restoreSession(attempt = 1): Promise<void> {
       try {
         const res = await api.post("/auth/refresh");
         setAccessToken(res.data.data.accessToken);
         await fetchMe();
-      } catch {
+      } catch (err) {
+        if (isTransportError(err) && attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return restoreSession(attempt + 1);
+        }
         setAccessToken(null);
         setUser(null);
-      } finally {
-        setIsLoading(false);
       }
-    })();
+    }
+
+    restoreSession().finally(() => setIsLoading(false));
   }, [fetchMe]);
+
+  // A background refresh (triggered by a 401 on some unrelated request) can fail after this
+  // provider already rendered a logged-in session. If the server genuinely rejected it, bring
+  // `user` back in sync rather than leaving the UI looking authenticated while every request
+  // silently fails from here on.
+  useEffect(() => {
+    return onAuthFailure(() => {
+      setUser(null);
+      setActiveChildId(null);
+      queryClient.clear();
+    });
+  }, [queryClient]);
 
   const login = useCallback(
     async (email: string, password: string) => {

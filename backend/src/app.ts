@@ -39,6 +39,11 @@ export function createApp() {
     app.use(morgan(env.isProduction ? "combined" : "dev"));
   }
 
+  // A plain landing response for the bare root - useful on its own (anyone opening the deployed
+  // URL directly gets a real answer instead of a 404), and it also replaces whatever Vercel's own
+  // platform-level handling of an unmatched "/" was doing before any of our own middleware ran.
+  app.get("/", (_req, res) => res.json({ success: true, message: "Sunshine CSSC API is running" }));
+
   app.use("/api", apiRateLimiter, routes);
 
   app.use(notFoundHandler);
